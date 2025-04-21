@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class ReplayBuffer:
 
     # all buffers are stored as fixed size numpy arrs
