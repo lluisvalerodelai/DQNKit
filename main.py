@@ -64,6 +64,6 @@ if TRAIN:
         checkpoint_freq=checkpoint_freq,
     )
 
-checkpoint_path = "checkpoints/checkpoint_q_network_1000"
+checkpoint_path = "checkpoints/checkpoint_q_network_100"
 q_alg.load_checkpoint(checkpoint_path)
-q_alg.record_demo("demos", demo_name="cartpole_1000_demo")
+q_alg.record_demo("demos", demo_name="cartpole_100_demo")

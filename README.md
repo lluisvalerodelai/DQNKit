@@ -19,6 +19,24 @@ Set `TRAIN` to true after tuning hyperparameters to start your run.
 
 This file also has a sample of hyperparams for a basic training run and demo
 
+## demo
+
+Episode 0 Episode 500	Episode 1000
+
+![alt text](showcase_videos/cartpole_100_demo-episode.gif)
+
+	
+
+![alt text](showcase_videos/cartpole_500_demo-episode.gif)
+
+	
+
+![alt text](showcase_videos/cartpole_1000_demo-episode.gif)
+
+Agent explores randomly	Agent starts balancing effectively	Agent balances consistently
+
+(Replace path/to/your/cp_epX.gif with the actual paths to your generated GIFs)
+
 ## Implemented Algorithms
 
 * Standard DQN
