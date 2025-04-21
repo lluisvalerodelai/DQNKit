@@ -21,16 +21,6 @@ This file also has a sample of hyperparams for a basic training run and demo
 
 ## demo
 
-Episode 0 Episode 500	Episode 1000
-
-![alt text]()
-
-	
-
-![alt text]()
-
-	
-
 | Episode 100 (Start)                      | Episode 500                            | Episode 1000 (End)                       |
 | :------------------------------------: | :------------------------------------: | :--------------------------------------: |
 | ![CartPole Ep 0](showcase_videos/cartpole_100_demo-episode.gif) | ![CartPole Ep 500](showcase_videos/cartpole_500_demo-episode.gif) | ![CartPole Ep 1000](showcase_videos/cartpole_1000_demo-episode.gif) |
