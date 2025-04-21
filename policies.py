@@ -9,6 +9,8 @@ def e_greedy_policy(state, q_network, epsilon, action_space):
 
     state = torch.unsqueeze(state, 0)
 
+    state.to(q_network.device)
+
     if random.random() < epsilon:
         action = random.choice(action_space)
     else:
