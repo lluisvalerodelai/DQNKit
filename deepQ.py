@@ -57,6 +57,8 @@ class deepQ_simple:
               gamma, target_net_update_freq, polyak_average, 
               tau, checkpoint_freq):
 
+        target_device = self.q_network.device
+
         self.replay_buffer.reset()
         epsilon = epsilon_start
         
@@ -68,7 +70,7 @@ class deepQ_simple:
             running_reward = 0
 
             while not ep_over:
-                action = self.policy(state, self.q_network, epsilon=epsilon, action_space=self.action_space)
+                action = self.policy(state.to(target_device), self.q_network, epsilon=epsilon, action_space=self.action_space)
                 next_state, reward, done, truncated, _ = self.env.step(action)
                 self.replay_buffer.insert(state, action, reward, next_state, done)
                 state = next_state
@@ -162,7 +164,7 @@ class deepQ_simple:
         total_r = 0
 
         while not done:
-            action = e_greedy_policy(state, self.q_network, epsilon=0.01, action_space=[0, 1])
+            action = e_greedy_policy(state.to(self.q_network.device), self.q_network, epsilon=0.01, action_space=[0, 1])
             next_state, reward, done, terminated, info = r_env.step(action)
             total_r += reward # pyright: ignore[reportOperatorIssue] weird...
             print(f"reward {reward} done/terminated {done | terminated} info {info}")
@@ -192,7 +194,7 @@ class deepQ_simple:
         done = False
 
         while not done:
-            action = self.policy(state, q_network=self.q_network, epsilon=0, action_space=self.action_space)
+            action = self.policy(state.to(self.q_network.device), q_network=self.q_network, epsilon=0, action_space=self.action_space)
             next_state, _, done, terminated, _ = env.step(action)
 
             if done or terminated:

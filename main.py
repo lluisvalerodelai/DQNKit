@@ -14,7 +14,7 @@ n_episodes = 2000
 lr = 0.00075
 
 batch_size = 64 
-buffer_size = 150000
+buffer_size = 100000
 
 epsilon_start = 1.0
 epsilon_min = 0.01
@@ -48,7 +48,7 @@ q_alg = deepQ_simple(
     log_dir=log_dir,
 )
 
-TRAIN = False
+TRAIN = True
 
 if TRAIN:
     q_alg.train(
@@ -68,5 +68,5 @@ if TRAIN:
 
 # checkpoint_path = "checkpoints/DeepQ_MountainCar-v0_e0.997_lr0.00075_batchsize64_buffersize150000_checkpoint700"
 # q_alg.load_checkpoint(checkpoint_path)
-q_alg.visual_demo()
-# q_alg.record_demo("demos", demo_name="cartpole_100_demo")
+# q_alg.visual_demo()
+q_alg.record_demo("demos", demo_name="cartpole_demo")
