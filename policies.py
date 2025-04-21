@@ -3,8 +3,7 @@ import numpy as np
 import random
 
 def e_greedy_policy(state, q_network, epsilon, action_space):
-    # not for parallel envs
-
+    # do not use this policy for batched state processing
     if type(state) == np.ndarray:
         state = torch.tensor(state)
 
