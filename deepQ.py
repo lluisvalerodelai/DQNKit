@@ -11,10 +11,7 @@ import torch
 import os
 
 class deepQ_simple:
-
     # the simplest, no add-ons deepQ
-    # target -> ~ E[Q(s, a) - r + \gamma Q(s', max_a)]
-
     def __init__(self, env_id, 
                  state_shape, n_actions, lr,
                  batch_size, buffer_size,
@@ -105,9 +102,6 @@ class deepQ_simple:
                     total_transitions = self.replay_buffer.mem_idx
                     capacity = min(self.replay_buffer.mem_idx, self.replay_buffer.max_size)
                     self.writer.add_scalars("Buffer/buffer_size", { "transitions_stored" : total_transitions, "current_size" : capacity}, global_frame)
-
-
-
 
             epsilon = max(epsilon_min, epsilon * epsilon_decay)
 
