@@ -23,7 +23,7 @@ This file also has a sample of hyperparams for a basic training run and demo
 
 | Episode 100 (Start)                      | Episode 500                            | Episode 1000 (End)                       |
 | :------------------------------------: | :------------------------------------: | :--------------------------------------: |
-| ![CartPole Ep 0](showcase_videos/cartpole_100_demo-episode.gif) | ![CartPole Ep 500](showcase_videos/cartpole_500_demo-episode.gif) | ![CartPole Ep 1000](showcase_videos/cartpole_1000_demo-episode.gif) |
+| ![CartPole Ep 0](showcase_videos/cartpole_000_demo-episode.gif) | ![CartPole Ep 500](showcase_videos/cartpole_500_demo-episode.gif) | ![CartPole Ep 1000](showcase_videos/cartpole_1000_demo-episode.gif) |
 | *Agent explores randomly*               | *Agent starts balancing effectively*    | *Agent balances consistently*             |
 
 ## Implemented Algorithms
