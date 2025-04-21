@@ -23,11 +23,11 @@ This file also has a sample of hyperparams for a basic training run and demo
 
 * Standard DQN
     - The original DQN implementation first published [here](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)
-* Double Q learning (in progress)
+* Double Q learning
     - [original](https://arxiv.org/pdf/1509.06461)
-* Dueling Architecture (in progress)
+* Dueling Architecture
     - you can choose between classic architecture and dueling for all algorithms
     - [original](https://arxiv.org/abs/1511.06581)
-* Prioritized experience replay (not yet started)
+* Prioritized experience replay
     - you can also choose to enable this or not for all algorithms
     - [original](https://arxiv.org/abs/1511.05952)
