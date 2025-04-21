@@ -1,4 +1,4 @@
-# [DQNKit] - A Collection of Deep Q Learning Algorithms
+# **DQNKit** - A Collection of Deep Q Learning Algorithms
 
 A collection of implementations of Deep Q variations, designed for "plug and play" modularity.
 
