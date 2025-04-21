@@ -34,7 +34,6 @@ class FrameStacking_Atari:
     def _state(self):
         return np.stack(tuple(self.framestack), dtype=np.float32)
 
-
 def make_pong_env(render: bool = False):
 
     if render:
@@ -53,5 +52,4 @@ def make_pong_env(render: bool = False):
     )
 
     pong_framestacked = FrameStacking_Atari(pong_frameskip)
-
     return pong_framestacked
