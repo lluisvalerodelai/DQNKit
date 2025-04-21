@@ -4,25 +4,25 @@ import os
 # --- Demo file for showing how you would use this --- #
 
 # specify hyperparams
-env_name = "CartPole-v1"
+env_name = "MountainCar-v0"
 
-state_shape = 4
-n_actions = 2
+state_shape = 2
+n_actions = 3
 
-n_episodes = 1000
+n_episodes = 2000
 
-lr = 0.00025
+lr = 0.00075
 
-batch_size = 32
-buffer_size = 75000
+batch_size = 64 
+buffer_size = 150000
 
 epsilon_start = 1.0
 epsilon_min = 0.01
-epsilon_decay = 0.995
+epsilon_decay = 0.997
 
-gamma = 0.99
+gamma = 0.96
 
-target_net_update_freq = 50
+target_net_update_freq = 20
 polyak_average = False
 tau = 0.001
 
@@ -30,7 +30,7 @@ checkpoint_freq = 100
 
 checkpoint_dir = "checkpoints"
 log_dir = "runs"
-base_name = f"DeepQ_{env_name}_lr{lr}_batchsize{batch_size}_buffersize{buffer_size}"
+base_name = f"DeepQ_{env_name}_e{epsilon_decay}_lr{lr}_batchsize{batch_size}_buffersize{buffer_size}"
 
 os.makedirs(log_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
@@ -64,6 +64,9 @@ if TRAIN:
         checkpoint_freq=checkpoint_freq,
     )
 
-checkpoint_path = "checkpoints/checkpoint_q_network_100"
-q_alg.load_checkpoint(checkpoint_path)
-q_alg.record_demo("demos", demo_name="cartpole_100_demo")
+
+
+# checkpoint_path = "checkpoints/DeepQ_MountainCar-v0_e0.997_lr0.00075_batchsize64_buffersize150000_checkpoint700"
+# q_alg.load_checkpoint(checkpoint_path)
+q_alg.visual_demo()
+# q_alg.record_demo("demos", demo_name="cartpole_100_demo")

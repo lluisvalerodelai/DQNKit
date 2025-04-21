@@ -82,10 +82,10 @@ class deepQ_simple:
 
                 if self.replay_buffer.can_sample(batch_size):
 
-                    if global_frame % 593 == 0:
-                        loss = self.update_q(batch_size, gamma, track_q=True)
+                    if global_frame % 250 == 0:
+                        loss = self.update_q(batch_size, gamma, global_frame=global_frame, track_q=True)
                     else:
-                        loss = self.update_q(batch_size, gamma, track_q=False)
+                        loss = self.update_q(batch_size, gamma, global_frame=global_frame, track_q=False)
 
                     if global_frame % target_net_update_freq == 0:
                         if polyak_average:
@@ -112,9 +112,9 @@ class deepQ_simple:
             self.writer.add_scalar("Returns/cumulative_reward", running_reward, ep)
             self.writer.add_scalar("Hparams/epsilon", epsilon, ep)
 
-            print(f"episode {ep} return {running_reward} epsilon {epsilon}")
+            print(f"device {self.q_network.device} episode {ep} return {running_reward} epsilon {epsilon}")
 
-    def update_q(self, batch_size, gamma, track_q = False):
+    def update_q(self, batch_size, gamma, global_frame, track_q = False):
         # do a single step based on the basic definition of q target
         
         # sample sars_d batch
@@ -141,7 +141,7 @@ class deepQ_simple:
             with torch.no_grad():
                 q_target_mean = torch.mean(target_q).item()
                 q_online_mean = torch.mean(expected_q).item()
-                self.writer.add_scalars("QValues/mean_q_values", {"target" : q_target_mean, "online" : q_online_mean})
+                self.writer.add_scalars("QValues/mean_q_values", {"target" : q_target_mean, "online" : q_online_mean}, global_step=global_frame)
 
         self.optimizer.zero_grad()
         loss = self.criterion(expected_q, target_q)
