@@ -1,24 +1,24 @@
-from deepQ import deepQ_simple
+from deepQ import DQN, double_DQN
 import os
 
 # --- Demo file for showing how you would use this --- #
 
 # specify hyperparams
-env_name = "MountainCar-v0"
+env_name = "CartPole-v1"
 
-state_shape = 2
-n_actions = 3
+state_shape = 4
+n_actions = 2
 
-n_episodes = 2000
+n_episodes = 300 
 
 lr = 0.00075
 
 batch_size = 64 
 buffer_size = 100000
 
-epsilon_start = 1.0
-epsilon_min = 0.01
-epsilon_decay = 0.997
+epsilon_start = 1
+epsilon_stop = 0.01
+epsilon_anneal_episodes = 150
 
 gamma = 0.96
 
@@ -30,13 +30,13 @@ checkpoint_freq = 100
 
 checkpoint_dir = "checkpoints"
 log_dir = "runs"
-base_name = f"DeepQ_{env_name}_e{epsilon_decay}_lr{lr}_batchsize{batch_size}_buffersize{buffer_size}"
+base_name = f"DeepQ_{env_name}_e{epsilon_anneal_episodes}to{epsilon_stop}_lr{lr}_batchsize{batch_size}_buffersize{buffer_size}"
 
 os.makedirs(log_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
 
 # this is the main algorithm object, which you can use to either train or test a model
-q_alg = deepQ_simple(
+q_alg = double_DQN(
     env_id=env_name,
     state_shape=state_shape,
     n_actions=n_actions,
@@ -55,8 +55,8 @@ if TRAIN:
         n_episodes=n_episodes,
         batch_size=batch_size,
         epsilon_start=epsilon_start,
-        epsilon_min=epsilon_min,
-        epsilon_decay=epsilon_decay,
+        epsilon_stop=epsilon_stop,
+        epsilon_anneal_episodes=epsilon_anneal_episodes,
         gamma=gamma,
         target_net_update_freq=target_net_update_freq,
         polyak_average=polyak_average,
