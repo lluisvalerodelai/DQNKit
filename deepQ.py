@@ -17,6 +17,7 @@ class DQN:
                  state_shape, n_actions, lr,
                  batch_size, buffer_size,
                  checkpoint_dir, base_name, log_dir,
+                 q_network,
                  min_num_batches=10,
                  policy : Callable = e_greedy_policy) -> None:
 
@@ -30,14 +31,7 @@ class DQN:
         self.env_id = env_id
         self.env = gym.make(env_id)
 
-        if type(state_shape) == int:
-            self.q_network = DQN_1dstates(input_dims=state_shape, 
-                                          n_actions=n_actions, 
-                                          checkpoint_dir=checkpoint_dir)
-        else:
-            self.q_network = DQN_2dstates(input_dims=state_shape, 
-                                          n_actions=n_actions, 
-                                          checkpoint_dir=checkpoint_dir)
+        self.q_network = q_network
 
         self.target_network = deepcopy(self.q_network).to(self.q_network.device)
         self.target_network.load_state_dict(self.q_network.state_dict())
@@ -212,6 +206,7 @@ class double_DQN:
                  state_shape, n_actions, lr,
                  batch_size, buffer_size,
                  checkpoint_dir, base_name, log_dir,
+                 q_network,
                  min_num_batches=10,
                  policy : Callable = e_greedy_policy) -> None:
 
@@ -225,14 +220,7 @@ class double_DQN:
         self.env_id = env_id
         self.env = gym.make(env_id)
 
-        if type(state_shape) == int:
-            self.q_network = DQN_1dstates(input_dims=state_shape, 
-                                          n_actions=n_actions, 
-                                          checkpoint_dir=checkpoint_dir)
-        else:
-            self.q_network = DQN_2dstates(input_dims=state_shape, 
-                                          n_actions=n_actions, 
-                                          checkpoint_dir=checkpoint_dir)
+        self.q_network = q_network
 
         self.target_network = deepcopy(self.q_network).to(self.q_network.device)
         self.target_network.load_state_dict(self.q_network.state_dict())

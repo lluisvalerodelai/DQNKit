@@ -67,3 +67,26 @@ class ReplayBuffer:
         self.dones_buffer = np.zeros((self.max_size), dtype=np.uint8)
 
         self.mem_idx = 0
+
+class PrioritizedReplayBuffer:
+    def __init__(self, max_size, state_dim, n_actions, min_num_batches=10) -> None:
+
+        # actions are stored as int8s for better gpu vram usage, and scaled as needed
+        assert n_actions < 2**8
+
+        self.max_size = max_size
+        self.mem_idx = 0
+        self.min_num_batches = min_num_batches
+
+        if type(state_dim) == int:
+            self.state_dim = (state_dim,)
+        else:
+            self.state_dim = state_dim
+
+        self.states_buffer = np.zeros((max_size, *self.state_dim), dtype=np.float32)
+        self.actions_buffer = np.zeros((max_size), dtype=np.int8)
+        self.rewards_buffer = np.zeros((max_size), dtype=np.float32)
+        self.next_states_buffer = np.zeros(
+            (max_size, *self.state_dim), dtype=np.float32
+        )
+        self.dones_buffer = np.zeros((max_size), dtype=np.uint8)

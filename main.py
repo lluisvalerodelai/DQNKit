@@ -1,15 +1,17 @@
 from deepQ import DQN, double_DQN
+from q_networks import DQN_1dstates, DQN_2dstates, DuelingDQN_1dstates
 import os
+import ale_py # pyright: ignore[]
 
 # --- Demo file for showing how you would use this --- #
 
 # specify hyperparams
-env_name = "CartPole-v1"
+env_name = "Acrobot-v1"
 
-state_shape = 4
-n_actions = 2
+n_actions = 3
+state_shape = 6
 
-n_episodes = 300 
+n_episodes = 1000 
 
 lr = 0.00075
 
@@ -18,7 +20,7 @@ buffer_size = 100000
 
 epsilon_start = 1
 epsilon_stop = 0.01
-epsilon_anneal_episodes = 150
+epsilon_anneal_episodes = 500
 
 gamma = 0.96
 
@@ -28,15 +30,18 @@ tau = 0.001
 
 checkpoint_freq = 100
 
+
 checkpoint_dir = "checkpoints"
 log_dir = "runs"
-base_name = f"DeepQ_{env_name}_e{epsilon_anneal_episodes}to{epsilon_stop}_lr{lr}_batchsize{batch_size}_buffersize{buffer_size}"
+base_name = f"StandardQ_{env_name}_e{epsilon_anneal_episodes}to{epsilon_stop}_lr{lr}_batchsize{batch_size}_buffersize{buffer_size}"
 
 os.makedirs(log_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
 
+q_network = DQN_1dstates(state_shape, n_actions, checkpoint_dir=checkpoint_dir)
+
 # this is the main algorithm object, which you can use to either train or test a model
-q_alg = double_DQN(
+q_alg = DQN(
     env_id=env_name,
     state_shape=state_shape,
     n_actions=n_actions,
@@ -46,6 +51,7 @@ q_alg = double_DQN(
     checkpoint_dir=checkpoint_dir,
     base_name=base_name,
     log_dir=log_dir,
+    q_network=q_network
 )
 
 TRAIN = True
