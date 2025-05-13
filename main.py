@@ -1,15 +1,16 @@
 from deepQ import DQN, double_DQN
 from q_networks import DQN_1dstates, DQN_2dstates, DuelingDQN_1dstates
+from replay_buffers import ReplayBuffer, PrioritizedReplayBuffer
 import os
 import ale_py # pyright: ignore[]
 
 # --- Demo file for showing how you would use this --- #
 
 # specify hyperparams
-env_name = "Acrobot-v1"
+env_name = "CartPole-v1"
 
-n_actions = 3
-state_shape = 6
+n_actions = 2
+state_shape = 4
 
 n_episodes = 1000 
 
@@ -23,6 +24,11 @@ epsilon_stop = 0.01
 epsilon_anneal_episodes = 500
 
 gamma = 0.96
+
+# replay buffer
+buffer_alpha = 0.5
+buffer_beta = 0.4
+buffer_epsilon = 0.01
 
 target_net_update_freq = 20
 polyak_average = False
@@ -39,6 +45,8 @@ os.makedirs(log_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
 
 q_network = DQN_1dstates(state_shape, n_actions, checkpoint_dir=checkpoint_dir)
+replay_buffer = PrioritizedReplayBuffer(max_size=buffer_size, state_dim=state_shape, n_actions=n_actions, alpha=buffer_alpha, epsilon=buffer_epsilon, beta=buffer_beta)
+replay_buffer = ReplayBuffer(max_size=buffer_size, state_dim=state_shape, n_actions=n_actions)
 
 # this is the main algorithm object, which you can use to either train or test a model
 q_alg = DQN(
@@ -47,7 +55,7 @@ q_alg = DQN(
     n_actions=n_actions,
     lr=lr,
     batch_size=batch_size,
-    buffer_size=buffer_size,
+    replay_buffer=replay_buffer,
     checkpoint_dir=checkpoint_dir,
     base_name=base_name,
     log_dir=log_dir,

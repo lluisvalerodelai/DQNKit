@@ -68,11 +68,17 @@ class ReplayBuffer:
 
         self.mem_idx = 0
 
-class PrioritizedReplayBuffer:
-    def __init__(self, max_size, state_dim, n_actions, min_num_batches=10) -> None:
+class PrioritizedReplayBuffer(ReplayBuffer):
+    def __init__(self, max_size, state_dim, n_actions, alpha, epsilon, beta, min_num_batches=10):
 
-        # actions are stored as int8s for better gpu vram usage, and scaled as needed
         assert n_actions < 2**8
+        assert alpha >= 0
+        assert beta > 0
+        assert epsilon >= 0
+
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.beta = beta
 
         self.max_size = max_size
         self.mem_idx = 0
@@ -83,6 +89,8 @@ class PrioritizedReplayBuffer:
         else:
             self.state_dim = state_dim
 
+
+        # all the experience buffers
         self.states_buffer = np.zeros((max_size, *self.state_dim), dtype=np.float32)
         self.actions_buffer = np.zeros((max_size), dtype=np.int8)
         self.rewards_buffer = np.zeros((max_size), dtype=np.float32)
@@ -90,3 +98,127 @@ class PrioritizedReplayBuffer:
             (max_size, *self.state_dim), dtype=np.float32
         )
         self.dones_buffer = np.zeros((max_size), dtype=np.uint8)
+
+        # the actual sum tree array
+            # total leaf nodes: max_size (or capacity of our replay buffer)
+            # inner nodes: max_size - 1
+            # inner nodes range from indices 0 : max_size - 2
+            # leaf nodes go from max_size - 1 : 2max_size - 2
+        # at the start all transitions start with probability 0 (no epsilon included) so that they are never sampled
+        self.sum_tree = np.zeros((2 * max_size - 1), dtype=np.float32)
+
+    def insert(self, state, action, reward, next_state, done):
+        index = self.mem_idx % self.max_size
+
+
+        # --- Store the transition into the replay buffers ---#
+        self.states_buffer[index] = state
+        self.actions_buffer[index] = action
+        self.rewards_buffer[index] = reward
+        self.next_states_buffer[index] = next_state
+        self.dones_buffer[index] = done
+
+
+        self.mem_idx += 1
+
+        # --- Store the transition into the sum tree --- #
+
+        # translate index into sum tree index
+        # in the sum tree indices 0 : max_size - 1 are reserved for leaf nodes, so we need to add max_size - 1 to the index
+        sum_tree_index = index + (self.max_size - 1)
+
+        old_priority = self.sum_tree[sum_tree_index]
+
+        current_max_priority = np.max(self.sum_tree[self.max_size - 1:])
+        new_priority = max(current_max_priority, 1)
+
+        self.sum_tree[sum_tree_index] = new_priority
+
+        # propagate priority change up the tree
+        priority_change = new_priority - old_priority
+
+        parent_index = (sum_tree_index - 1) // 2
+
+        while parent_index >= 0:
+            self.sum_tree[parent_index] += priority_change
+            parent_index = (parent_index - 1) // 2
+
+    def sample(self, batch_size): 
+        # TODO: implement batched sampling
+        # until you dont have batched sampling its not worth it to even test it, because then when you sample you are sampling experiences of shape (state_shape), not (batch_size, state_shape)
+
+        assert self.can_sample(batch_size)
+        
+        if self.sum_tree[0] == 0:
+            raise ValueError("No transitions in the replay buffer")
+
+        # sample a number within our sum range to index sum tree
+        chosen_priority = np.random.uniform(0, self.sum_tree[0])
+
+        # traverse the tree to find the leaf node that contains the chosen priority
+        sum_tree_index = 0
+
+        # while we havent landed in our leaf node range, keep going down
+        while sum_tree_index < self.max_size - 1:
+            left_child_index = 2 * sum_tree_index + 1
+            right_child_index = 2 * sum_tree_index + 2
+
+            # if our chosen priority is less than the left child, go left. else, go right and change the range
+            if chosen_priority <= self.sum_tree[left_child_index]:
+                sum_tree_index = left_child_index
+            else:
+                # sums in the right tree are relative to the start of the previous segment
+                chosen_priority -= self.sum_tree[left_child_index]
+                sum_tree_index = right_child_index
+
+        # translate the sum tree index into the index of the replay buffer
+        replay_buffer_index = sum_tree_index - (self.max_size - 1)
+
+        # calculate the importance sampling weights
+        assert self.mem_idx > 0
+
+        sampling_prob = self.sum_tree[sum_tree_index] / self.sum_tree[0] # will never be 0 because of epsilon and checking for 0 transitions
+        IS_weight = (min(self.mem_idx, self.max_size) * sampling_prob) ** -self.beta
+
+        # sample from the replay buffer, return the sum_tree index of the sampled priorities as well for updating
+
+        states = self.states_buffer[replay_buffer_index]
+        actions = self.actions_buffer[replay_buffer_index]
+        rewards = self.rewards_buffer[replay_buffer_index]
+        next_states = self.next_states_buffer[replay_buffer_index]
+        dones = self.dones_buffer[replay_buffer_index]
+        
+        return states, actions, rewards, next_states, dones, sum_tree_index, IS_weight
+
+    def update_priorities(self, priority_index, td_error): # TODO: implement batched updating
+
+        abs_td = abs(td_error) + self.epsilon
+        new_priority = abs_td ** self.alpha
+
+        delta_priority = new_priority - self.sum_tree[priority_index]
+        self.sum_tree[priority_index] = new_priority
+
+        # propagate the change up the tree
+        while priority_index > 0:
+            # go the parent node
+            priority_index = (priority_index - 1) // 2
+
+            self.sum_tree[priority_index] += delta_priority
+
+    def can_sample(self, batch_size):
+        if self.mem_idx < batch_size * self.min_num_batches:
+            return False
+        return True
+
+    def reset(self):
+        self.states_buffer = np.zeros((self.max_size, *self.state_dim), dtype=np.float32)
+        self.actions_buffer = np.zeros((self.max_size), dtype=np.int8)
+        self.rewards_buffer = np.zeros((self.max_size), dtype=np.float32)
+        self.next_states_buffer = np.zeros(
+            (self.max_size, *self.state_dim), dtype=np.float32
+        )
+        self.dones_buffer = np.zeros((self.max_size), dtype=np.uint8)
+
+        self.sum_tree = np.zeros((2 * self.max_size - 1), dtype=np.float32)
+
+        self.mem_idx = 0

@@ -1,6 +1,6 @@
+from replay_buffers import ReplayBuffer, PrioritizedReplayBuffer
 from torch.utils.tensorboard.writer import SummaryWriter
 from q_networks import DQN_1dstates, DQN_2dstates
-from replay_buffers import ReplayBuffer
 from policies import e_greedy_policy
 from torch.optim import AdamW
 from typing import Callable
@@ -15,7 +15,7 @@ class DQN:
     # the simplest, no add-ons deepQ
     def __init__(self, env_id, 
                  state_shape, n_actions, lr,
-                 batch_size, buffer_size,
+                 batch_size, replay_buffer,
                  checkpoint_dir, base_name, log_dir,
                  q_network,
                  min_num_batches=10,
@@ -23,7 +23,6 @@ class DQN:
 
         self.lr = lr
         self.batch_size = batch_size
-        self.buffer_size = buffer_size
         self.checkpoint_dir = checkpoint_dir
         self.run_name = base_name
         self.action_space = [action for action in range(n_actions)]
@@ -31,15 +30,18 @@ class DQN:
         self.env_id = env_id
         self.env = gym.make(env_id)
 
+        self.replay_buffer = replay_buffer
+        if isinstance(self.replay_buffer, PrioritizedReplayBuffer):
+            self.with_priorities = True
+        else:
+            self.with_priorities = False
+
         self.q_network = q_network
 
         self.target_network = deepcopy(self.q_network).to(self.q_network.device)
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.target_network.eval()
 
-        self.replay_buffer = ReplayBuffer(max_size=self.buffer_size, state_dim=state_shape, 
-                                          n_actions=n_actions,       min_num_batches=min_num_batches)
-        
         self.optimizer = AdamW(self.q_network.parameters(), lr=self.lr) 
         self.criterion = nn.MSELoss()
 
@@ -114,7 +116,13 @@ class DQN:
         # do a single step based on the basic definition of q target
         
         # sample sars_d batch
-        state_b, action_b, reward_b, next_state_b, done_b = self.replay_buffer.sample(batch_size)
+        if self.with_priorities:
+            state_b, action_b, reward_b, next_state_b, done_b, sum_tree_index, IS_weight = self.replay_buffer.sample(batch_size)
+        else:
+            state_b, action_b, reward_b, next_state_b, done_b = self.replay_buffer.sample(batch_size)
+
+        if self.with_priorities:
+            IS_weight = torch.tensor(IS_weight, dtype=torch.float32, device=self.q_network.device)
 
         target_device = self.q_network.device
         state_b = torch.tensor(state_b, dtype=torch.float32, device=target_device)
@@ -140,9 +148,20 @@ class DQN:
                 self.writer.add_scalars("QValues/mean_q_values", {"target" : q_target_mean, "online" : q_online_mean}, global_step=global_frame)
 
         self.optimizer.zero_grad()
-        loss = self.criterion(expected_q, target_q)
+
+        if self.with_priorities:
+            loss = self.criterion(expected_q, target_q) * IS_weight
+        else:
+            loss = self.criterion(expected_q, target_q)
+
         loss.backward()
         self.optimizer.step()
+
+        # update priorities if using PER
+        if self.with_priorities:
+            td_diff = (target_q - expected_q).detach().cpu().numpy()
+            self.replay_buffer.update_priorities(sum_tree_index, td_diff)
+
         return loss.item()
     
     def load_checkpoint(self, cpath):
