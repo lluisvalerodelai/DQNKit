@@ -154,6 +154,8 @@ class DQN:
         else:
             loss = self.criterion(expected_q, target_q)
 
+        # TODO: something very fishy is going on with shapes thats causing errors
+        breakpoint()
         loss.backward()
         self.optimizer.step()
 

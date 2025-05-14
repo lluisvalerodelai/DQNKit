@@ -1,4 +1,5 @@
 import numpy as np
+from utils import stratified_sampling
 
 class ReplayBuffer:
 
@@ -89,7 +90,6 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         else:
             self.state_dim = state_dim
 
-
         # all the experience buffers
         self.states_buffer = np.zeros((max_size, *self.state_dim), dtype=np.float32)
         self.actions_buffer = np.zeros((max_size), dtype=np.int8)
@@ -108,6 +108,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self.sum_tree = np.zeros((2 * max_size - 1), dtype=np.float32)
 
     def insert(self, state, action, reward, next_state, done):
+
         index = self.mem_idx % self.max_size
 
 
@@ -144,8 +145,6 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             parent_index = (parent_index - 1) // 2
 
     def sample(self, batch_size): 
-        # TODO: implement batched sampling
-        # until you dont have batched sampling its not worth it to even test it, because then when you sample you are sampling experiences of shape (state_shape), not (batch_size, state_shape)
 
         assert self.can_sample(batch_size)
         
@@ -153,57 +152,73 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             raise ValueError("No transitions in the replay buffer")
 
         # sample a number within our sum range to index sum tree
-        chosen_priority = np.random.uniform(0, self.sum_tree[0])
+        chosen_priorities = stratified_sampling(self.sum_tree[0], batch_size)
 
-        # traverse the tree to find the leaf node that contains the chosen priority
-        sum_tree_index = 0
+        sum_tree_indices = []
+        replay_buffer_indices = []
 
-        # while we havent landed in our leaf node range, keep going down
-        while sum_tree_index < self.max_size - 1:
-            left_child_index = 2 * sum_tree_index + 1
-            right_child_index = 2 * sum_tree_index + 2
+        for i in range(batch_size):
 
-            # if our chosen priority is less than the left child, go left. else, go right and change the range
-            if chosen_priority <= self.sum_tree[left_child_index]:
-                sum_tree_index = left_child_index
-            else:
-                # sums in the right tree are relative to the start of the previous segment
-                chosen_priority -= self.sum_tree[left_child_index]
-                sum_tree_index = right_child_index
+            # traverse the tree to find the leaf node that contains the chosen priority
+            sum_tree_index = 0
+            current_priority = chosen_priorities[i]
 
-        # translate the sum tree index into the index of the replay buffer
-        replay_buffer_index = sum_tree_index - (self.max_size - 1)
+            # while we havent landed in our leaf node range, keep going down
+            while sum_tree_index < self.max_size - 1:
+                left_child_index = 2 * sum_tree_index + 1
+                right_child_index = 2 * sum_tree_index + 2
+
+                # if our chosen priority is less than the left child, go left. else, go right and change the range
+                if current_priority <= self.sum_tree[left_child_index]:
+                    sum_tree_index = left_child_index
+                else:
+                    # sums in the right tree are relative to the start of the previous segment
+                    current_priority -= self.sum_tree[left_child_index]
+                    sum_tree_index = right_child_index
+
+            # translate the sum tree index into the index of the replay buffer
+            replay_buffer_indices.append(sum_tree_index - (self.max_size - 1))
+            sum_tree_indices.append(sum_tree_index)
 
         # calculate the importance sampling weights
         assert self.mem_idx > 0
+        assert self.sum_tree[0] > 0
 
-        sampling_prob = self.sum_tree[sum_tree_index] / self.sum_tree[0] # will never be 0 because of epsilon and checking for 0 transitions
-        IS_weight = (min(self.mem_idx, self.max_size) * sampling_prob) ** -self.beta
+        # TODO: 2 things -> make sure none of the sampling probs were 0, and make sure that you normalize IS weights to avoid exploding gradients
+        sampling_probs = np.divide(self.sum_tree[sum_tree_indices], self.sum_tree[0])
+        if np.any(sampling_probs == 0):
+            raise ValueError("Sampling probability was 0")
+
+        # normalize IS weights
+        IS_weights = (min(self.mem_idx, self.max_size) * sampling_probs) ** -self.beta
+        IS_weights = IS_weights / np.max(IS_weights) if np.max(IS_weights) > 0 else np.zeros_like(IS_weights)
+        IS_weights[np.isnan(IS_weights)] = 0
+        IS_weights[np.isinf(IS_weights)] = 0
 
         # sample from the replay buffer, return the sum_tree index of the sampled priorities as well for updating
+        states = self.states_buffer[replay_buffer_indices]
+        actions = self.actions_buffer[replay_buffer_indices]
+        rewards = self.rewards_buffer[replay_buffer_indices]
+        next_states = self.next_states_buffer[replay_buffer_indices]
+        dones = self.dones_buffer[replay_buffer_indices]
 
-        states = self.states_buffer[replay_buffer_index]
-        actions = self.actions_buffer[replay_buffer_index]
-        rewards = self.rewards_buffer[replay_buffer_index]
-        next_states = self.next_states_buffer[replay_buffer_index]
-        dones = self.dones_buffer[replay_buffer_index]
-        
-        return states, actions, rewards, next_states, dones, sum_tree_index, IS_weight
+        return states, actions, rewards, next_states, dones, sum_tree_indices, IS_weights
 
-    def update_priorities(self, priority_index, td_error): # TODO: implement batched updating
+    def update_priorities(self, priority_indices, td_errors): # TODO: implement batched updating
 
-        abs_td = abs(td_error) + self.epsilon
-        new_priority = abs_td ** self.alpha
+        abs_td = np.abs(td_errors) + self.epsilon
+        new_priorities = abs_td ** self.alpha
 
-        delta_priority = new_priority - self.sum_tree[priority_index]
-        self.sum_tree[priority_index] = new_priority
+        for priority_index, new_priority in zip(priority_indices, new_priorities):
+            delta_priority = new_priority - self.sum_tree[priority_index]
+            self.sum_tree[priority_index] = new_priority
 
         # propagate the change up the tree
-        while priority_index > 0:
-            # go the parent node
-            priority_index = (priority_index - 1) // 2
+            while priority_index > 0:
+                # go the parent node
+                priority_index = (priority_index - 1) // 2
 
-            self.sum_tree[priority_index] += delta_priority
+                self.sum_tree[priority_index] += delta_priority
 
     def can_sample(self, batch_size):
         if self.mem_idx < batch_size * self.min_num_batches:
@@ -222,3 +237,54 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self.sum_tree = np.zeros((2 * self.max_size - 1), dtype=np.float32)
 
         self.mem_idx = 0
+
+class SumTree:
+    def __init__(self, max_size, alpha, epsilon, beta):
+
+        assert alpha >= 0
+        assert beta > 0
+        assert epsilon >= 0
+
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.beta = beta
+        self.max_size = max_size
+
+        self.tree = np.zeros((2 * max_size - 1), dtype=np.float32)
+
+    def insert(self, priority, index):
+        sum_tree_index = index + (self.max_size - 1)
+
+        old_priority = self.tree[sum_tree_index]
+        current_max_priority = np.max(self.tree[self.max_size - 1:])
+        new_priority = max(current_max_priority, 1)
+
+        self.tree[sum_tree_index] = new_priority
+
+        delta_priority = new_priority - old_priority
+
+        parent_index = (sum_tree_index - 1) // 2
+
+        while parent_index >= 0:
+            self.tree[parent_index] += delta_priority
+            parent_index = (parent_index - 1) // 2
+
+    def sample(self, batch_size):
+        # sample a number within our sum range to index sum tree
+        # return an index for the replay buffer (not sum tree index)
+
+        chosen_priority = np.random.uniform(0, self.tree[0])
+
+        sum_tree_index = 0
+
+        while sum_tree_index < self.max_size - 1:
+            left_child_index = 2 * sum_tree_index + 1
+            right_child_index = 2 * sum_tree_index + 2
+
+            if chosen_priority <= self.tree[left_child_index]:
+                sum_tree_index = left_child_index
+            else:
+                chosen_priority -= self.tree[left_child_index]
+                sum_tree_index = right_child_index
+
+        return sum_tree_index - (self.max_size - 1)

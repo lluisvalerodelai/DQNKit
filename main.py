@@ -46,7 +46,7 @@ os.makedirs(checkpoint_dir, exist_ok=True)
 
 q_network = DQN_1dstates(state_shape, n_actions, checkpoint_dir=checkpoint_dir)
 replay_buffer = PrioritizedReplayBuffer(max_size=buffer_size, state_dim=state_shape, n_actions=n_actions, alpha=buffer_alpha, epsilon=buffer_epsilon, beta=buffer_beta)
-replay_buffer = ReplayBuffer(max_size=buffer_size, state_dim=state_shape, n_actions=n_actions)
+# replay_buffer = ReplayBuffer(max_size=buffer_size, state_dim=state_shape, n_actions=n_actions)
 
 # this is the main algorithm object, which you can use to either train or test a model
 q_alg = DQN(
