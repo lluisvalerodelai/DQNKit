@@ -43,7 +43,10 @@ class DQN:
         self.target_network.eval()
 
         self.optimizer = AdamW(self.q_network.parameters(), lr=self.lr) 
-        self.criterion = nn.MSELoss()
+        if self.with_priorities:
+            self.criterion = nn.MSELoss(reduction='none')
+        else:
+            self.criterion = nn.MSELoss()
 
         self.log_dir = os.path.join(log_dir, self.run_name)
         
@@ -122,7 +125,7 @@ class DQN:
             state_b, action_b, reward_b, next_state_b, done_b = self.replay_buffer.sample(batch_size)
 
         if self.with_priorities:
-            IS_weight = torch.tensor(IS_weight, dtype=torch.float32, device=self.q_network.device)
+            IS_weight = torch.tensor(IS_weight, dtype=torch.float32, device=self.q_network.device).reshape(-1, 1)
 
         target_device = self.q_network.device
         state_b = torch.tensor(state_b, dtype=torch.float32, device=target_device)
@@ -151,11 +154,11 @@ class DQN:
 
         if self.with_priorities:
             loss = self.criterion(expected_q, target_q) * IS_weight
+            # take the mean of all the individual loss values AFTER weighting by importance
+            loss = torch.mean(loss)
         else:
             loss = self.criterion(expected_q, target_q)
 
-        # TODO: something very fishy is going on with shapes thats causing errors
-        breakpoint()
         loss.backward()
         self.optimizer.step()
 

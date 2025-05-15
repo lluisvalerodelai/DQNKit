@@ -184,8 +184,10 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         assert self.mem_idx > 0
         assert self.sum_tree[0] > 0
 
-        # TODO: 2 things -> make sure none of the sampling probs were 0, and make sure that you normalize IS weights to avoid exploding gradients
         sampling_probs = np.divide(self.sum_tree[sum_tree_indices], self.sum_tree[0])
+        
+        # for you later: whats happening is that you are sampling values from your replay buffer which should have probability 0, because they still havent been filled in so they have a 0 priority, which is where the 0 is coming from
+        # somehow youre sampling things that shouldnt be getting sampled
         if np.any(sampling_probs == 0):
             raise ValueError("Sampling probability was 0")
 
